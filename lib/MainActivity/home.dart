@@ -161,7 +161,7 @@ class HomeState extends State<Home>{
           backgroundColor: Colors.grey[200],
           appBar: AppBar(
             title: Text(
-              'Audit Tracker - LGU',
+              'SGLG Client',
               style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -273,6 +273,56 @@ class HomeState extends State<Home>{
 
                                   const Text(
                                     'My Account',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold
+                                    ),
+                                  ),
+
+                                  const Spacer(),
+
+                                  Image.asset(
+                                    'assets/arrow_right.png',
+                                    height: 25,
+                                    width: 25,
+                                  ),
+                                ],
+                              ),
+                            )
+                        ),
+                      )
+                  ),
+
+                  Container(
+                      padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
+                      margin: const EdgeInsets.all(5),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            splashColor: Colors.white24,
+                            onTap: (){
+                              Navigator.of(context).pop();
+
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/manual.png',
+                                    height: 25,
+                                    width: 25,
+                                  ),
+
+                                  const SizedBox(
+                                    width: 20,
+                                  ),
+
+                                  const Text(
+                                    'Submitted',
                                     style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold
@@ -517,15 +567,8 @@ class HomeState extends State<Home>{
                       ),
                     )
                 ): SingleChildScrollView(
-                  child: GridView.builder(
+                  child: ListView.builder(
                     shrinkWrap: true,
-                    physics: const ScrollPhysics(),
-                    scrollDirection: Axis.vertical,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: (MediaQuery.of(context).size.width.toInt() ~/ 290 < 2) ? 2 : MediaQuery.of(context).size.width.toInt() ~/ 290, // Number of items in each row
-                      crossAxisSpacing: 8, // Spacing between items horizontally
-                      mainAxisSpacing: 8, // Spacing between items vertically
-                    ),
                     itemCount: _areaList.length,
                     itemBuilder: (gridContext, gridIndex){
                       Map<dynamic, dynamic> indicatorsMap = {};
@@ -558,139 +601,48 @@ class HomeState extends State<Home>{
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: Text(
-                                      _areaList[gridIndex]["title"].toString(),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 2,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(5),
+                                      child: Text(
+                                        _areaList[gridIndex]["title"].toString(),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold
+                                        ),
                                       ),
                                     ),
-                                  ),
-
-                                  const SizedBox(
-                                    height: 8,
-                                  ),
-
-                                  Image.asset(
-                                    "assets/forms.png",
-                                    width: 70,
-                                    height: 70,
-                                  ),
-
-                                  const SizedBox(
-                                    height: 8,
                                   ),
 
                                   Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      "Date: ${_areaList[gridIndex]["timestamp"].toString()}",
-                                      style: const TextStyle(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(3),
+                                      child: Text(
+                                        "Date: ${_areaList[gridIndex]["timestamp"].toString()}",
+                                        style: const TextStyle(
                                           fontSize: 13
+                                        ),
                                       ),
                                     ),
                                   ),
 
-                                  Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child:
-                                      Text(
-                                        "Description: ${_areaList[gridIndex]["description"].toString()}",
-                                        maxLines: 2,
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(5),
+                                      child: Text(
+                                        _areaList[gridIndex]["description"].toString(),
+                                        maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                            fontSize: 13
+                                          fontSize: 13
                                         ),
                                       ),
-                                    )
-                                  ),
-
-                                  const Spacer(),
-
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Expanded(
-                                        child: IgnorePointer(
-                                          ignoring: indicatorList.isEmpty,
-                                          child: Ink(
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue[100],
-                                              borderRadius: BorderRadius.circular(10)
-                                            ),
-                                            child: InkWell(
-                                                onTap: (){
-                                                  _classicDialog.setTitle(_areaList[gridIndex]["title"].toString());
-                                                  _classicDialog.setMessage("Date: ${_areaList[gridIndex]["timestamp"].toString()}\n\n"
-                                                      "Description: ${_areaList[gridIndex]["description"].toString()}");
-                                                  _classicDialog.setCancelable(false);
-                                                  _classicDialog.setPositiveButtonTitle("Close");
-                                                  _classicDialog.showOneButtonDialog(context, () { });
-                                                },
-
-                                                borderRadius: BorderRadius.circular(10),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(8),
-                                                  child: Text(
-                                                    indicatorList.isEmpty ? "Not available" : "View Info.",
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: indicatorList.isEmpty ? Colors.grey : Colors.blue
-                                                    ),
-                                                  ),
-                                                )
-                                            ),
-                                          )
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        width: 8,
-                                      ),
-
-                                      Expanded(
-                                        child: IgnorePointer(
-                                          ignoring: indicatorList.isEmpty,
-                                          child: Ink(
-                                            decoration: BoxDecoration(
-                                                color: Colors.blue[100],
-                                                borderRadius: BorderRadius.circular(10)
-                                            ),
-                                            child: InkWell(
-                                                onTap: (){
-                                                  Navigator.push(context, MaterialPageRoute(builder: (context) => AnswerAuditForm(
-                                                    formTitle: _areaList[gridIndex]["title"].toString(),
-                                                    fieldPushKey: _areaList[gridIndex]["pushKey"].toString(),
-                                                    userZoneId: _userZoneId,
-                                                    userName: _userName!)
-                                                  ));
-                                                },
-
-                                                borderRadius: BorderRadius.circular(10),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(8),
-                                                  child: Text(
-                                                    indicatorList.isEmpty ? "Not available" : "Answer Template",
-                                                    textAlign: TextAlign.center,
-                                                    style: TextStyle(
-                                                        fontSize: 13,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: indicatorList.isEmpty ? Colors.grey : Colors.blue
-                                                    ),
-                                                  ),
-                                                )
-                                            ),
-                                          )
-                                        ),
-                                      )
-                                    ],
+                                    ),
                                   )
                                 ],
                               ),

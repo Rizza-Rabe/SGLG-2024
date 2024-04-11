@@ -1,19 +1,15 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:audit_tracker/BottomSheetDialog/mov_files.dart';
 import 'package:audit_tracker/Dialogs/classic_dialog.dart';
 import 'package:audit_tracker/Dialogs/loading_dialog.dart';
 import 'package:audit_tracker/MessageToaster/message_toaster.dart';
 import 'package:audit_tracker/Utility/utility.dart';
 import 'package:audit_tracker/WidgetBuilder/widget_builder.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:mime_type/mime_type.dart';
+import 'package:intl/intl.dart';
+import '../Dialogs/requirements.dart';
 import '../Utility/default_values.dart';
-import 'dart:html' as html;
 
 /// COMPLEXITIES STARTS HERE, PLEASE ANALYZE EVERY SINGLE WIDGET RENDERED BASED FROM THE DATA ON FIREBASE *
 /// EVERY WIDGETS RENDERED HERE ARE ALL BASED FROM THE ADMINISTRATOR REQUIREMENTS.
@@ -23,12 +19,12 @@ import 'dart:html' as html;
 /// HEADACHES MAY OCCUR WHILE ANALYZING THIS CODE, PLEASE MAKE SURE YOU HAVE YOUR MEDICINE.
 
 class AnswerAuditForm extends StatefulWidget{
-  const AnswerAuditForm({super.key, required this.formTitle, required this.fieldPushKey, required this.userZoneId, required this.userName});
+  const AnswerAuditForm({super.key, required this.formTitle, required this.fieldPushKey, required this.userZoneId, required this.userName, required this.requirements});
   final String formTitle;
   final String fieldPushKey;
   final String userZoneId;
   final String userName;
-  
+  final String requirements;
 
   @override
   State<StatefulWidget> createState() => AnswerAuditFormState();
@@ -40,6 +36,7 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
   final _loadingDialog = LoadingDialog();
   final _indicatorAnswers = List<dynamic>() = [];
   final _indicators = List<dynamic>() = [];
+  List<dynamic> _requirementsList = List<dynamic>() = [];
 
   @override
   void initState() {
@@ -51,6 +48,8 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
 
   void _initializeLogic() async {
     Utility().printLog("Form pushKey: ${widget.fieldPushKey}");
+    Utility().printLog("Requirements: ${widget.requirements}");
+    _requirementsList = jsonDecode(widget.requirements);
 
     await Future.delayed(const Duration(milliseconds: 150));
     _getFormDetails();
@@ -154,13 +153,24 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
   }
 
   void _updateFirstIndicator(String newValue, String key) async {
-    for (var item in _indicators) {
-      if (item is Map && item.containsKey("subIndicator")) {
-        Map<String, dynamic> subIndicator = item["subIndicator"];
-        if (subIndicator.containsKey("key") && subIndicator["key"] == key) {
-          subIndicator["answer"] = newValue;
-          break;
-        }
+    for (int a = 0; a != _indicators.length; a++) {
+      Utility().printLog("KEY: ${_indicators[a]["key"].toString()}");
+      if(_indicators[a]["key"].toString() == key){
+        _indicators[a]["answer"] = newValue;
+        Utility().printLog("FOUND SAME KEY FOR ANSWER");
+        break;
+      }
+    }
+
+    Utility().printLog("Answer: $_indicators");
+  }
+
+  void _updateFirstIndicatorMOVFile(String newValue, String key) async {
+    for (int a = 0; a != _indicators.length; a++) {
+      if(_indicators[a]["key"].toString() == key){
+        _indicators[a]["movFiles"] = newValue;
+        Utility().printLog("FOUND THE SAME KEY FOR MOV FILE");
+        break;
       }
     }
 
@@ -175,6 +185,22 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
           Map<String, dynamic> subIndicatorItem = subIndicator[subKey];
           if (subIndicatorItem.containsKey("key") && subIndicatorItem["key"] == key) {
             subIndicatorItem["answer"] = newValue;
+            break;
+          }
+        }
+      }
+    }
+    Utility().printLog("Answer: $_indicators");
+  }
+
+  void _updateSecondIndicatorMOVFile(String newValue, String key) {
+    for (var item in _indicators) {
+      if (item is Map && item.containsKey("subIndicator")) {
+        Map<String, dynamic> subIndicator = item["subIndicator"];
+        for (var subKey in subIndicator.keys) {
+          Map<String, dynamic> subIndicatorItem = subIndicator[subKey];
+          if (subIndicatorItem.containsKey("key") && subIndicatorItem["key"] == key) {
+            subIndicatorItem["movFiles"] = newValue;
             break;
           }
         }
@@ -206,18 +232,46 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
     Utility().printLog("Answer: $_indicators");
   }
 
+  void _updateLastIndicatorAnswersMOVFiles(String newValue, String key) async {
+    for (var item in _indicators) {
+      if (item is Map && item.containsKey("subIndicator")) {
+        Map<String, dynamic> subIndicator = item["subIndicator"];
+        for (var subKey in subIndicator.keys) {
+          Map<String, dynamic> subIndicatorItem = subIndicator[subKey];
+          if (subIndicatorItem.containsKey("subIndicators")) {
+            Map<String, dynamic> subIndicators = subIndicatorItem["subIndicators"];
+            for (var subIndKey in subIndicators.keys) {
+              Map<String, dynamic> subIndicatorsItem = subIndicators[subIndKey];
+              if (subIndicatorsItem.containsKey("key") && subIndicatorsItem["key"] == key) {
+                subIndicatorsItem["movFiles"] = newValue;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    Utility().printLog("Answer: $_indicators");
+  }
+
   void _submitAnswer(String userAnswer) async {
     _loadingDialog.showLoadingDialog(context);
     DatabaseReference databaseReference = FirebaseDatabase.instance.ref("Compliance");
+    String pushKey = databaseReference.push().key.toString();
+    String dateSubmitted = DateFormat("MMM dd, yyyy hh:mm a").format(DateTime.now());
     Map<dynamic, dynamic> data = {};
     data["fieldPushKey"] = widget.fieldPushKey;
     data["fieldAnswers"] = userAnswer;
-    data["timestamp"] = "TEST DATE";
+    data["timestamp"] = dateSubmitted;
     data["sender"] = widget.userName;
+    data["pushKey"] = pushKey;
     data["status"] = "submitted";
+    data["zipCode"] = widget.userZoneId;
+    data["viewed"] = false;
 
     try{
-      await databaseReference.child(widget.userZoneId).child(widget.fieldPushKey).set(data);
+      await databaseReference.child(widget.userZoneId).child(pushKey).set(data);
     }catch(a){
       if(mounted) _loadingDialog.dismissDialog(context);
       _classicDialog.setTitle("An error occurred!");
@@ -279,10 +333,12 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                       List<dynamic> firstIndicatorCheckBoxTitles = [];
                       List<dynamic> firstIndicatorRadioButtonTitles = [];
                       List<dynamic> forSecondInnerIndicatorData = [];
+                      List<dynamic> firstIndicatorMOVFileList = [];
 
                       String? firstIndicatorType = _indicators[index2]["dataInputMethod"]["type"];
                       String? firstIndicatorValue = _indicators[index2]["dataInputMethod"]["value"];
                       String? firstIndicatorMOVType = _indicators[index2]["mov"];
+                      String firstIndicatorMOVFileCounts = "Upload MOV file (0)";
                       bool hasSecondSubIndicator = _indicators[index2]["subIndicator"] != null;
 
                       if(hasSecondSubIndicator){
@@ -302,6 +358,12 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                         Utility().printLog("Radio button decoded title counts: ${firstIndicatorCheckBoxTitles.length}");
                       }
                       if(firstIndicatorType!.startsWith("num")){
+
+                      }
+
+                      if(_indicators[index2]["movFiles"] != null){
+                        firstIndicatorMOVFileList = jsonDecode(_indicators[index2]["movFiles"].toString());
+                        firstIndicatorMOVFileCounts = "Upload MOV file (${firstIndicatorMOVFileList.length})";
                       }
 
                       return Container(
@@ -424,11 +486,13 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                             List<dynamic> secondInnerSubIndicatorRadioButtonTitle = [];
                                             List<dynamic> secondInnerSubIndicatorCheckBoxTitle = [];
                                             List<dynamic> forThirdInnerSubIndicatorData = [];
+                                            List<dynamic> secondIndicatorMOVFileList = [];
 
                                             Map<dynamic, dynamic> map = forSecondInnerIndicatorData[secondSubIndicatorIndex] as Map<dynamic, dynamic>;
                                             String? secondInnerSubIndicatorType = map["dataInputMethod"]["type"];
                                             String? secondInnerSubIndicatorValue = map["dataInputMethod"]["value"];
                                             String? secondIndicatorMov = map["mov"];
+                                            String secondIndicatorMOVFileCounts = "Upload MOV file (0)";
 
                                             if(secondInnerSubIndicatorType == "radio_button" && secondInnerSubIndicatorValue != null){
                                               secondInnerSubIndicatorRadioButtonTitle = jsonDecode(secondInnerSubIndicatorValue);
@@ -444,6 +508,11 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                               veryInnerSubIndicator.forEach((key, value) async {
                                                 forThirdInnerSubIndicatorData.add(value);
                                               });
+                                            }
+
+                                            if(map["movFiles"] != null){
+                                              secondIndicatorMOVFileList = jsonDecode(map["movFiles"].toString());
+                                              secondIndicatorMOVFileCounts = "Upload MOV file (${secondIndicatorMOVFileList.length})";
                                             }
 
                                             return Padding(
@@ -544,39 +613,58 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                                           alignment: Alignment.centerRight,
                                                           child: IgnorePointer(
                                                             ignoring: secondIndicatorMov == null || secondIndicatorMov == "null",
-                                                            child: InkWell(
-                                                                onTap: () async {
+                                                            child: StatefulBuilder(
+                                                              builder: (secondIndicatorStateContext, secondIndicatorSetState){
+                                                                return InkWell(
+                                                                    onTap: () async {
+                                                                      MovFiles movFiles = MovFiles();
+                                                                      movFiles.showMovFilesDialogs(forSecondInnerIndicatorData[secondSubIndicatorIndex]["query"].toString().toString(), context, forSecondInnerIndicatorData[secondSubIndicatorIndex]["movFiles"].toString(), widget.userZoneId, (newData){
+                                                                        if(newData == null){
+                                                                          secondIndicatorMOVFileList.clear();
+                                                                          secondIndicatorMOVFileCounts = "Upload MOV file (0)";
+                                                                          secondIndicatorSetState((){});
+                                                                          _updateSecondIndicatorMOVFile("[]", forSecondInnerIndicatorData[secondSubIndicatorIndex]["key"].toString());
+                                                                          return;
+                                                                        }
 
-                                                                },
+                                                                        _updateSecondIndicatorMOVFile(newData, forSecondInnerIndicatorData[secondSubIndicatorIndex]["key"].toString());
+                                                                        secondIndicatorMOVFileList = jsonDecode(newData);
+                                                                        secondIndicatorMOVFileCounts = "Upload MOV file (${secondIndicatorMOVFileList.length})";
+                                                                        Utility().printLog("MOV count: ${secondIndicatorMOVFileList.length}");
+                                                                        secondIndicatorSetState((){});
+                                                                      });
+                                                                    },
 
-                                                                splashColor: Colors.blue,
-                                                                child: Padding(
-                                                                  padding: const EdgeInsets.all(8),
-                                                                  child: Row(
-                                                                    mainAxisSize: MainAxisSize.min,
-                                                                    children: [
-                                                                      Image.asset(
-                                                                        "assets/upload.png",
-                                                                        width: 20,
-                                                                        height: 20,
+                                                                    splashColor: Colors.blue,
+                                                                    child: Padding(
+                                                                      padding: const EdgeInsets.all(8),
+                                                                      child: Row(
+                                                                        mainAxisSize: MainAxisSize.min,
+                                                                        children: [
+                                                                          Image.asset(
+                                                                            "assets/upload.png",
+                                                                            width: 20,
+                                                                            height: 20,
+                                                                          ),
+
+                                                                          const SizedBox(
+                                                                            width: 10,
+                                                                          ),
+
+                                                                          Text(
+                                                                            secondIndicatorMov == "null" || secondIndicatorMov == null ? "Not applicable" : secondIndicatorMOVFileCounts,
+                                                                            style: TextStyle(
+                                                                                fontWeight: FontWeight.bold,
+                                                                                fontSize: 14,
+                                                                                color: secondIndicatorMov == "null" || secondIndicatorMov == null ? Colors.grey : Colors.black
+                                                                            ),
+                                                                          )
+                                                                        ],
                                                                       ),
-
-                                                                      const SizedBox(
-                                                                        width: 10,
-                                                                      ),
-
-                                                                      Text(
-                                                                        secondIndicatorMov == "null" || secondIndicatorMov == null ? "Not applicable" : "Upload MOV file (0)",
-                                                                        style: TextStyle(
-                                                                            fontWeight: FontWeight.bold,
-                                                                            fontSize: 14,
-                                                                            color: secondIndicatorMov == "null" || secondIndicatorMov == null ? Colors.grey : Colors.black
-                                                                        ),
-                                                                      )
-                                                                    ],
-                                                                  ),
-                                                                )
-                                                            ),
+                                                                    )
+                                                                );
+                                                              },
+                                                            )
                                                           )
                                                       ),
 
@@ -600,6 +688,7 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                                           String? thirdSubIndicatorType = map["dataInputMethod"]["type"];
                                                           String? thirdSubIndicatorValue = map["dataInputMethod"]["value"];
                                                           String? thirdSubIndicatorMov = map["mov"];
+                                                          String thirdIndicatorMOVFileCounts = "Upload MOV file (0)";
 
                                                           if(thirdSubIndicatorType == "check_box"){
                                                             thirdInnerSubIndicatorCheckBoxTitle = jsonDecode(thirdSubIndicatorValue!);
@@ -710,39 +799,58 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                                                         alignment: Alignment.centerRight,
                                                                         child: IgnorePointer(
                                                                           ignoring: thirdSubIndicatorMov == null || thirdSubIndicatorMov == "null",
-                                                                          child: InkWell(
-                                                                              onTap: () async {
+                                                                          child: StatefulBuilder(
+                                                                            builder: (thirdIndicatorStatefulContext, thirdIndicatorSetState){
+                                                                              return InkWell(
+                                                                                  onTap: () async {
+                                                                                    MovFiles movFiles = MovFiles();
+                                                                                    movFiles.showMovFilesDialogs(forThirdInnerSubIndicatorData[thirdSubIndicatorIndex]["query"].toString(), context, forThirdInnerSubIndicatorData[thirdSubIndicatorIndex]["movFiles"].toString(), widget.userZoneId, (newData){
+                                                                                      if(newData == null){
+                                                                                        firstIndicatorMOVFileList.clear();
+                                                                                        thirdIndicatorMOVFileCounts = "Upload MOV file (0)";
+                                                                                        thirdIndicatorSetState((){});
+                                                                                        _updateLastIndicatorAnswersMOVFiles("[]", forThirdInnerSubIndicatorData[thirdSubIndicatorIndex]["key"].toString());
+                                                                                        return;
+                                                                                      }
 
-                                                                              },
+                                                                                      _updateLastIndicatorAnswersMOVFiles(newData, forThirdInnerSubIndicatorData[thirdSubIndicatorIndex]["key"].toString());
+                                                                                      firstIndicatorMOVFileList = jsonDecode(newData);
+                                                                                      thirdIndicatorMOVFileCounts = "Upload MOV file (${firstIndicatorMOVFileList.length})";
+                                                                                      Utility().printLog("MOV count: ${firstIndicatorMOVFileList.length}");
+                                                                                      thirdIndicatorSetState((){});
+                                                                                    });
+                                                                                  },
 
-                                                                              splashColor: Colors.blue,
-                                                                              child: Padding(
-                                                                                padding: const EdgeInsets.all(8),
-                                                                                child: Row(
-                                                                                  mainAxisSize: MainAxisSize.min,
-                                                                                  children: [
-                                                                                    Image.asset(
-                                                                                      "assets/upload.png",
-                                                                                      width: 20,
-                                                                                      height: 20,
+                                                                                  splashColor: Colors.blue,
+                                                                                  child: Padding(
+                                                                                    padding: const EdgeInsets.all(8),
+                                                                                    child: Row(
+                                                                                      mainAxisSize: MainAxisSize.min,
+                                                                                      children: [
+                                                                                        Image.asset(
+                                                                                          "assets/upload.png",
+                                                                                          width: 20,
+                                                                                          height: 20,
+                                                                                        ),
+
+                                                                                        const SizedBox(
+                                                                                          width: 10,
+                                                                                        ),
+
+                                                                                        Text(
+                                                                                          thirdSubIndicatorMov == "null" || thirdSubIndicatorMov == null ? "Not applicable" : thirdIndicatorMOVFileCounts,
+                                                                                          style: TextStyle(
+                                                                                              fontWeight: FontWeight.bold,
+                                                                                              fontSize: 14,
+                                                                                              color: thirdSubIndicatorMov == "null" || thirdSubIndicatorMov == null ? Colors.grey : Colors.black
+                                                                                          ),
+                                                                                        )
+                                                                                      ],
                                                                                     ),
-
-                                                                                    const SizedBox(
-                                                                                      width: 10,
-                                                                                    ),
-
-                                                                                    Text(
-                                                                                      thirdSubIndicatorMov == "null" || thirdSubIndicatorMov == null ? "Not applicable" : "Upload MOV file (0)",
-                                                                                      style: TextStyle(
-                                                                                          fontWeight: FontWeight.bold,
-                                                                                          fontSize: 14,
-                                                                                          color: thirdSubIndicatorMov == "null" || thirdSubIndicatorMov == null ? Colors.grey : Colors.black
-                                                                                      ),
-                                                                                    )
-                                                                                  ],
-                                                                                ),
-                                                                              )
-                                                                          ),
+                                                                                  )
+                                                                              );
+                                                                            },
+                                                                          )
                                                                         )
                                                                     )
                                                                   ],
@@ -767,42 +875,58 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                                           alignment: Alignment.centerRight,
                                           child: IgnorePointer(
                                             ignoring: firstIndicatorMOVType == null || firstIndicatorMOVType == "null",
-                                            child: InkWell(
-                                                onTap: () async {
-                                                  MovFiles movFiles = MovFiles();
-                                                  movFiles.showMovFilesDialogs(context, _indicators[index2]["movFiles"], widget.userZoneId, (newData){
+                                            child: StatefulBuilder(
+                                              builder: (stateContext, firstIndicatorMOVSetState){
+                                                return InkWell(
+                                                    onTap: () async {
+                                                      MovFiles movFiles = MovFiles();
+                                                      movFiles.showMovFilesDialogs(_indicators[index2]["query"].toString(), context, _indicators[index2]["movFiles"], widget.userZoneId, (newData){
+                                                        if(newData == null){
+                                                          firstIndicatorMOVFileList.clear();
+                                                          firstIndicatorMOVFileCounts = "Upload MOV file (0)";
+                                                          firstIndicatorMOVSetState((){});
+                                                          _updateFirstIndicatorMOVFile("[]", _indicators[index2]["key"].toString());
+                                                          return;
+                                                        }
 
-                                                  });
-                                                },
+                                                        _updateFirstIndicatorMOVFile(newData, _indicators[index2]["key"].toString());
+                                                        firstIndicatorMOVFileList = jsonDecode(newData);
+                                                        firstIndicatorMOVFileCounts = "Upload MOV file (${firstIndicatorMOVFileList.length})";
+                                                        Utility().printLog("MOV count: ${firstIndicatorMOVFileList.length}");
+                                                        firstIndicatorMOVSetState((){});
+                                                      });
+                                                    },
 
-                                                splashColor: Colors.blue,
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(8),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Image.asset(
-                                                        "assets/upload.png",
-                                                        width: 20,
-                                                        height: 20,
+                                                    splashColor: Colors.blue,
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.all(8),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Image.asset(
+                                                            "assets/upload.png",
+                                                            width: 20,
+                                                            height: 20,
+                                                          ),
+
+                                                          const SizedBox(
+                                                            width: 10,
+                                                          ),
+
+                                                          Text(
+                                                            firstIndicatorMOVType == "null" || firstIndicatorMOVType == null ? "Not applicable" : firstIndicatorMOVFileCounts,
+                                                            style: TextStyle(
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 14,
+                                                                color: firstIndicatorMOVType == "null" || firstIndicatorMOVType == null ? Colors.grey : Colors.black
+                                                            ),
+                                                          )
+                                                        ],
                                                       ),
-
-                                                      const SizedBox(
-                                                        width: 10,
-                                                      ),
-
-                                                      Text(
-                                                        firstIndicatorMOVType == "null" || firstIndicatorMOVType == null ? "Not applicable" : "Upload MOV file (0)",
-                                                        style: TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 14,
-                                                            color: firstIndicatorMOVType == "null" || firstIndicatorMOVType == null ? Colors.grey : Colors.black
-                                                        ),
-                                                      )
-                                                    ],
-                                                  ),
-                                                )
-                                            ),
+                                                    )
+                                                );
+                                              },
+                                            )
                                           )
                                       )
                                     ],
@@ -914,7 +1038,28 @@ class AnswerAuditFormState extends State<AnswerAuditForm>{
                 ),
               ),
             ),
-          )
+          ),
+
+          floatingActionButton: FloatingActionButton(
+            onPressed: (){
+              if(_requirementsList.isEmpty){
+                _classicDialog.setTitle("No Requirements Found");
+                _classicDialog.setMessage("This field does not have any requirements.");
+                _classicDialog.setCancelable(false);
+                _classicDialog.setPositiveButtonTitle("Close");
+                _classicDialog.showOneButtonDialog(context, () { });
+                return;
+              }
+
+              Requirements requirements = Requirements();
+              requirements.showRequirementsDialog(context, _requirementsList);
+            },
+
+            tooltip: 'Requirements',
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.blue,
+            child: const Icon(Icons.info_outline),
+          ),
         ),
       ),
     );
